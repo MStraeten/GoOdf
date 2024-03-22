@@ -9,11 +9,11 @@
  *
  * GOODF is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GOODF.  If not, see <https://www.gnu.org/licenses/>.
+ * along with GOODF. If not, see <https://www.gnu.org/licenses/>.
  *
  * You can contact the author on larspalo(at)yahoo.se
  */
@@ -302,7 +302,7 @@ bool GUIEnclosure::isReferencing(Enclosure *enclosure) {
 
 void GUIEnclosure::updateDisplayName() {
 	if (m_enclosure)
-		setDisplayName(m_enclosure->getName());
+		setDisplayName(m_enclosure->getName() + wxT(" (Enclosure)"));
 }
 
 wxBitmap GUIEnclosure::getBitmap() {
@@ -311,6 +311,13 @@ wxBitmap GUIEnclosure::getBitmap() {
 	} else {
 		return m_bitmaps.front().getBitmap();
 	}
+}
+
+wxString GUIEnclosure::getElementName() {
+	if (m_enclosure)
+		return m_enclosure->getName();
+	else
+		return getDisplayName();
 }
 
 GoColor* GUIEnclosure::getDispLabelColour() {

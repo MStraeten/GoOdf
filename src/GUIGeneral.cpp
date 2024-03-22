@@ -9,11 +9,11 @@
  *
  * GOODF is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GOODF.  If not, see <https://www.gnu.org/licenses/>.
+ * along with GOODF. If not, see <https://www.gnu.org/licenses/>.
  *
  * You can contact the author on larspalo(at)yahoo.se
  */
@@ -51,5 +51,12 @@ bool GUIGeneral::isReferencing(General *general) {
 
 void GUIGeneral::updateDisplayName() {
 	if (m_general)
-		setDisplayName(m_general->getName());
+		setDisplayName(m_general->getName() + wxT(" (General)"));
+}
+
+wxString GUIGeneral::getElementName() {
+	if (m_general)
+		return m_general->getName();
+	else
+		return getDisplayName();
 }
