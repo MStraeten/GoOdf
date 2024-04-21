@@ -9,7 +9,7 @@
  *
  * GOODF is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -23,6 +23,7 @@
 
 Pipe::Pipe() {
 	isPercussive = false;
+	hasIndependentRelease = false;
 	amplitudeLevel = 100;
 	gain = 0;
 	pitchTuning = 0;
@@ -39,6 +40,7 @@ Pipe::Pipe() {
 
 Pipe::Pipe(const Pipe& p) {
 	isPercussive = p.isPercussive;
+	hasIndependentRelease = p.hasIndependentRelease;
 	amplitudeLevel = p.amplitudeLevel;
 	gain = p.gain;
 	pitchTuning = p.pitchTuning;
@@ -73,9 +75,15 @@ void Pipe::write(wxTextFile *outFile, wxString pipeNr, Rank *parent) {
 		outFile->AddLine(fullLine);
 
 		if (isPercussive != parent->isPercussive()) {
-			if (isPercussive)
+			if (isPercussive) {
 				outFile->AddLine(pipeNr + wxT("Percussive=Y"));
-			else
+				if (hasIndependentRelease != parent->isIndependentRelease()) {
+					if (hasIndependentRelease)
+						outFile->AddLine(pipeNr + wxT("HasIndependentRelease=Y"));
+					else
+						outFile->AddLine(pipeNr + wxT("HasIndependentRelease=N"));
+				}
+			} else
 				outFile->AddLine(pipeNr + wxT("Percussive=N"));
 		}
 		if (amplitudeLevel != 100)
@@ -129,9 +137,11 @@ void Pipe::write(wxTextFile *outFile, wxString pipeNr, Rank *parent) {
 	}
 }
 
-void Pipe::read(wxFileConfig *cfg, wxString pipeNr, Rank *parent) {
+void Pipe::read(wxFileConfig *cfg, wxString pipeNr, Rank *parent, Organ *readOrgan) {
 	wxString cfgBoolValue = cfg->Read(pipeNr + wxT("Percussive"), wxEmptyString);
 	isPercussive = GOODF_functions::parseBoolean(cfgBoolValue, parent->isPercussive());
+	cfgBoolValue = cfg->Read(pipeNr + wxT("HasIndependentRelease"), wxEmptyString);
+	hasIndependentRelease = GOODF_functions::parseBoolean(cfgBoolValue, parent->isIndependentRelease());
 	float ampLvl = static_cast<float>(cfg->ReadDouble(pipeNr + wxT("AmplitudeLevel"), 100.0f));
 	if (ampLvl >= 0 && ampLvl <= 1000) {
 		amplitudeLevel = ampLvl;
@@ -165,8 +175,8 @@ void Pipe::read(wxFileConfig *cfg, wxString pipeNr, Rank *parent) {
 		pitchCorrection = pitchCorr;
 	}
 	int windchestRef = static_cast<int>(cfg->ReadLong(pipeNr + wxT("WindchestGroup"), 0));
-	if (windchestRef > 0 && windchestRef <= (int) ::wxGetApp().m_frame->m_organ->getNumberOfWindchestgroups()) {
-		windchest = ::wxGetApp().m_frame->m_organ->getOrganWindchestgroupAt(windchestRef - 1);
+	if (windchestRef > 0 && windchestRef <= (int) readOrgan->getNumberOfWindchestgroups()) {
+		windchest = readOrgan->getOrganWindchestgroupAt(windchestRef - 1);
 	} else {
 		windchest = parent->getWindchest();
 	}
@@ -182,23 +192,25 @@ void Pipe::read(wxFileConfig *cfg, wxString pipeNr, Rank *parent) {
 	acceptsRetuning = GOODF_functions::parseBoolean(retuningStr, parent->doesAcceptsRetuning());
 
 	// the main attack is added first
-	readAttack(cfg, pipeNr);
+	readAttack(cfg, pipeNr, readOrgan);
 	// next any additional attacks
 	int nbrExtraAtks = static_cast<int>(cfg->ReadLong(pipeNr + wxT("AttackCount"), 0));
 	if (nbrExtraAtks > 0 && nbrExtraAtks < 101) {
 		for (int atk = 0; atk < nbrExtraAtks; atk++) {
 			wxString atkStr = pipeNr + wxT("Attack") + GOODF_functions::number_format(atk + 1);
-			readAttack(cfg, atkStr);
+			readAttack(cfg, atkStr, readOrgan);
 		}
 	}
 
 	int nbrExtraRel = static_cast<int>(cfg->ReadLong(pipeNr + wxT("ReleaseCount"), 0));
-	// Releases should only exist for pipes that are not percussive!
-	if (nbrExtraRel > 0 && nbrExtraRel < 101 && !isPercussive) {
+	// Releases should only exist for pipes that are not percussive without independent release!
+	if ((nbrExtraRel > 0 && nbrExtraRel < 101 && !isPercussive) ||
+		(nbrExtraRel > 0 && nbrExtraRel < 101 && isPercussive && hasIndependentRelease)
+		) {
 		for (int rel = 0; rel < nbrExtraRel; rel++) {
 			wxString relStr = pipeNr + wxT("Release") + GOODF_functions::number_format(rel + 1);
 			wxString relPath = cfg->Read(relStr, wxEmptyString);
-			wxString fullRelPath = GOODF_functions::checkIfFileExist(relPath);
+			wxString fullRelPath = GOODF_functions::checkIfFileExist(relPath, readOrgan);
 			if (fullRelPath != wxEmptyString) {
 				int isTrem = static_cast<int>(cfg->ReadLong(relStr + wxT("IsTremulant"), -1));
 				int maxKeyPress = static_cast<int>(cfg->ReadLong(relStr + wxT("MaxKeyPressTime"), -1));
@@ -238,11 +250,11 @@ void Pipe::read(wxFileConfig *cfg, wxString pipeNr, Rank *parent) {
 	}
 }
 
-void Pipe::readAttack(wxFileConfig *cfg, wxString pipeStr) {
+void Pipe::readAttack(wxFileConfig *cfg, wxString pipeStr, Organ *readOrgan) {
 	wxString mainAtkStr = cfg->Read(pipeStr, wxEmptyString);
 	if (mainAtkStr != wxEmptyString) {
 		// the pipe can have a relative path to a sample file or start with REF
-		wxString fullAtkPath = GOODF_functions::checkIfFileExist(mainAtkStr);
+		wxString fullAtkPath = GOODF_functions::checkIfFileExist(mainAtkStr, readOrgan);
 		if (fullAtkPath != wxEmptyString) {
 			wxString loadReleaseStr = cfg->Read(pipeStr + wxT("LoadRelease"), wxEmptyString);
 			int atkVel = static_cast<int>(cfg->ReadLong(pipeStr + wxT("AttackVelocity"), 0));
@@ -350,7 +362,9 @@ void Pipe::writeAdditionalAttacks(wxTextFile *outFile, wxString pipeNr) {
 
 void Pipe::writeAdditionalReleases(wxTextFile *outFile, wxString pipeNr) {
 	// Deal with possible additional releases if not a percussive pipe
-	if (!m_releases.empty() && !isPercussive) {
+	if ((!m_releases.empty() && !isPercussive) ||
+		(!m_releases.empty() && isPercussive && hasIndependentRelease)
+		) {
 		unsigned extraReleases = m_releases.size();
 		outFile->AddLine(pipeNr + wxT("ReleaseCount=") + wxString::Format(wxT("%u"), extraReleases));
 		unsigned k = 0;
@@ -457,5 +471,18 @@ void Pipe::updateRelativePaths() {
 	}
 	for (Release& r : m_releases) {
 		r.fileName = GOODF_functions::removeBaseOdfPath(r.fullPath);
+	}
+}
+
+bool Pipe::isIndependentRelease() {
+	return hasIndependentRelease;
+}
+
+void Pipe::setIndependentRelease(bool independent) {
+	this->hasIndependentRelease = independent;
+
+	if (!independent && isPercussive) {
+		if (!m_releases.empty())
+			m_releases.clear();
 	}
 }

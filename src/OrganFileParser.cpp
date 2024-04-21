@@ -9,11 +9,11 @@
  *
  * GOODF is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GOODF.  If not, see <https://www.gnu.org/licenses/>.
+ * along with GOODF. If not, see <https://www.gnu.org/licenses/>.
  *
  * You can contact the author on larspalo(at)yahoo.se
  */
@@ -140,7 +140,7 @@ void OrganFileParser::parseOrganSection() {
 	m_organ->setOrganComments(m_organFile->Read("OrganComments", wxEmptyString));
 	m_organ->setRecordingDetails(m_organFile->Read("RecordingDetails", wxEmptyString));
 	wxString infoFilename = m_organFile->Read("InfoFilename", wxEmptyString);
-	wxString infoFile = GOODF_functions::checkIfFileExist(infoFilename);
+	wxString infoFile = GOODF_functions::checkIfFileExist(infoFilename, m_organ);
 	if (infoFile != wxEmptyString) {
 		m_organ->setInfoFilename(infoFile);
 	}
@@ -170,6 +170,12 @@ void OrganFileParser::parseOrganSection() {
 	if (trackerDelay >= 0 && trackerDelay <= 10000) {
 		m_organ->setTrackerDelay(static_cast<unsigned>(trackerDelay));
 	}
+	cfgBoolValue = m_organFile->Read("Percussive", wxEmptyString);
+	m_organ->setIsPercussive(GOODF_functions::parseBoolean(cfgBoolValue, false));
+	if (m_organ->getIsPercussive()) {
+		cfgBoolValue = m_organFile->Read("HasIndependentRelease", wxEmptyString);
+		m_organ->setHasIndependentRelease(GOODF_functions::parseBoolean(cfgBoolValue, false));
+	}
 	cfgBoolValue = m_organFile->Read("HasPedals", wxEmptyString);
 	m_organ->setHasPedals(GOODF_functions::parseBoolean(cfgBoolValue, false), true);
 
@@ -189,7 +195,7 @@ void OrganFileParser::parseOrganSection() {
 					GoImage img;
 					img.setOwningPanelWidth(m_organ->getOrganPanelAt(0)->getDisplayMetrics()->m_dispScreenSizeHoriz.getNumericalValue());
 					img.setOwningPanelHeight(m_organ->getOrganPanelAt(0)->getDisplayMetrics()->m_dispScreenSizeVert.getNumericalValue());
-					bool imgIsOk = img.read(m_organFile);
+					bool imgIsOk = img.read(m_organFile, m_organ);
 					if (imgIsOk)
 						m_organ->getOrganPanelAt(0)->addImage(img);
 				}
@@ -216,7 +222,7 @@ void OrganFileParser::parseOrganSection() {
 		// But the new style GUI elements must be read after all the structural elements have been processed,
 		// so that will be done at a later point in the parsing.
 		m_organFile->SetPath(wxT("/Panel000"));
-		m_organ->getOrganPanelAt(0)->read(m_organFile, wxT("Panel000"));
+		m_organ->getOrganPanelAt(0)->read(m_organFile, wxT("Panel000"), m_organ);
 		m_progressDlg->Update(12, wxT("Parsing [Panel000] base section"));
 		m_organFile->SetPath("/Organ");
 	}
@@ -253,7 +259,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(switchGroupName)) {
 				m_organFile->SetPath(wxT("/") + switchGroupName);
 				GoSwitch sw;
-				sw.read(m_organFile, m_isUsingOldPanelFormat);
+				sw.read(m_organFile, m_isUsingOldPanelFormat, m_organ);
 				m_organ->addSwitch(sw, true);
 				if (sw.isDisplayed()) {
 					int lastSwitchIdx = m_organ->getNumberOfSwitches() - 1;
@@ -274,7 +280,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(tremGroupName)) {
 				m_organFile->SetPath(wxT("/") + tremGroupName);
 				Tremulant trem;
-				trem.read(m_organFile, m_isUsingOldPanelFormat);
+				trem.read(m_organFile, m_isUsingOldPanelFormat, m_organ);
 				m_organ->addTremulant(trem, true);
 				if (trem.isDisplayed()) {
 					int lastTremIdx = m_organ->getNumberOfTremulants() - 1;
@@ -295,7 +301,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(windchestGroupName)) {
 				m_organFile->SetPath(wxT("/") + windchestGroupName);
 				Windchestgroup windchest;
-				windchest.read(m_organFile);
+				windchest.read(m_organFile, m_organ);
 				m_organ->addWindchestgroup(windchest);
 			}
 		}
@@ -312,7 +318,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(rankGroupName)) {
 				m_organFile->SetPath(wxT("/") + rankGroupName);
 				Rank r;
-				r.read(m_organFile);
+				r.read(m_organFile, m_organ);
 				m_organ->addRank(r);
 			}
 		}
@@ -342,7 +348,7 @@ void OrganFileParser::parseOrganSection() {
 					m.setIsPedal(true, true);
 				m_organ->addManual(m, true);
 				Manual *man = m_organ->getOrganManualAt(m_organ->getNumberOfManuals() - 1);
-				man->read(m_organFile, m_isUsingOldPanelFormat, manGroupName);
+				man->read(m_organFile, m_isUsingOldPanelFormat, manGroupName, m_organ);
 				if (man->isDisplayed()) {
 					createGUIManual(m_organ->getOrganPanelAt(0), man);
 					if (manGroupName.IsSameAs(wxT("Manual000")))
@@ -361,7 +367,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(manGroupName) && i < (int) m_organ->getNumberOfManuals()) {
 				m_organFile->SetPath(wxT("/") + manGroupName);
 				Manual *man = m_organ->getOrganManualAt(i);
-				man->readCouplers(m_organFile, m_isUsingOldPanelFormat, manGroupName);
+				man->readCouplers(m_organFile, m_isUsingOldPanelFormat, manGroupName, m_organ);
 			}
 		}
 
@@ -375,7 +381,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(manGroupName) && i < (int) m_organ->getNumberOfManuals()) {
 				m_organFile->SetPath(wxT("/") + manGroupName);
 				Manual *man = m_organ->getOrganManualAt(i);
-				man->readDivisionals(m_organFile, m_isUsingOldPanelFormat, manGroupName);
+				man->readDivisionals(m_organFile, m_isUsingOldPanelFormat, manGroupName, m_organ);
 			}
 		}
 		m_organFile->SetPath("/Organ");
@@ -391,7 +397,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(pistonGroupName)) {
 				m_organFile->SetPath(wxT("/") + pistonGroupName);
 				ReversiblePiston p;
-				p.read(m_organFile, m_isUsingOldPanelFormat);
+				p.read(m_organFile, m_isUsingOldPanelFormat, m_organ);
 				m_organ->addReversiblePiston(p, true);
 				if (p.isDisplayed()) {
 					unsigned lastPistonIdx = m_organ->getNumberOfReversiblePistons() - 1;
@@ -412,7 +418,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(divCplrGroupName)) {
 				m_organFile->SetPath(wxT("/") + divCplrGroupName);
 				DivisionalCoupler divCplr;
-				divCplr.read(m_organFile, m_isUsingOldPanelFormat);
+				divCplr.read(m_organFile, m_isUsingOldPanelFormat, m_organ);
 				m_organ->addDivisionalCoupler(divCplr, true);
 				if (divCplr.isDisplayed()) {
 					unsigned lastIdx = m_organ->getNumberOfOrganDivisionalCouplers() - 1;
@@ -433,7 +439,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(generalGroupName)) {
 				m_organFile->SetPath(wxT("/") + generalGroupName);
 				General g;
-				g.read(m_organFile, m_isUsingOldPanelFormat);
+				g.read(m_organFile, m_isUsingOldPanelFormat, m_organ);
 				m_organ->addGeneral(g, true);
 				if (g.isDisplayed()) {
 					unsigned lastIdx = m_organ->getNumberOfGenerals() - 1;
@@ -484,7 +490,7 @@ void OrganFileParser::parseOrganSection() {
 			if (m_organFile->HasGroup(panelGroupName)) {
 				m_organFile->SetPath(wxT("/") + panelGroupName);
 				GoPanel p;
-				p.read(m_organFile, panelGroupName);
+				p.read(m_organFile, panelGroupName, m_organ);
 				m_organ->addPanel(p);
 				parsePanelElements(m_organ->getOrganPanelAt(m_organ->getNumberOfPanels() - 1), panelGroupName);
 			}
@@ -504,7 +510,7 @@ void OrganFileParser::createGUIEnclosure(GoPanel *targetPanel, Enclosure *enclos
 	// convert gui element back to enclosure type for parsing
 	GUIEnclosure *encElement = dynamic_cast<GUIEnclosure*>(guiEnc);
 	if (encElement) {
-		encElement->read(m_organFile);
+		encElement->read(m_organFile, m_organ);
 	}
 }
 
@@ -517,7 +523,7 @@ void OrganFileParser::createGUITremulant(GoPanel *targetPanel, Tremulant *tremul
 
 	GUITremulant *tremElement = dynamic_cast<GUITremulant*>(guiTrem);
 	if (tremElement) {
-		tremElement->read(m_organFile);
+		tremElement->read(m_organFile, m_organ);
 	}
 }
 
@@ -531,7 +537,7 @@ void OrganFileParser::createGUISwitch(GoPanel *targetPanel, GoSwitch *theSwitch)
 
 	GUISwitch *switchElement = dynamic_cast<GUISwitch*>(guiSwitch);
 	if (switchElement) {
-		switchElement->read(m_organFile);
+		switchElement->read(m_organFile, m_organ);
 	}
 }
 
@@ -544,7 +550,7 @@ void OrganFileParser::createGUILabel(GoPanel *targetPanel) {
 
 	GUILabel *theLabel = dynamic_cast<GUILabel*>(label);
 	if (theLabel) {
-		theLabel->read(m_organFile);
+		theLabel->read(m_organFile, m_organ);
 	}
 }
 
@@ -556,7 +562,7 @@ void OrganFileParser::createGUIManual(GoPanel *targetPanel, Manual *manual) {
 
 	GUIManual *theManual = dynamic_cast<GUIManual*>(man);
 	if (theManual) {
-		theManual->read(m_organFile);
+		theManual->read(m_organFile, m_organ);
 	}
 }
 
@@ -569,7 +575,7 @@ void OrganFileParser::createGUIPiston(GoPanel *targetPanel, ReversiblePiston *pi
 
 	GUIReversiblePiston *thePiston = dynamic_cast<GUIReversiblePiston*>(revPiston);
 	if (thePiston) {
-		thePiston->read(m_organFile, thePiston->isDisplayAsPiston());
+		thePiston->read(m_organFile, thePiston->isDisplayAsPiston(), m_organ);
 	}
 }
 
@@ -582,7 +588,7 @@ void OrganFileParser::createGUIDivCplr(GoPanel *targetPanel, DivisionalCoupler *
 
 	GUIDivisionalCoupler *theDivCplr = dynamic_cast<GUIDivisionalCoupler*>(divCoupler);
 	if (theDivCplr) {
-		theDivCplr->read(m_organFile, theDivCplr->isDisplayAsPiston());
+		theDivCplr->read(m_organFile, theDivCplr->isDisplayAsPiston(), m_organ);
 	}
 }
 
@@ -596,7 +602,7 @@ void OrganFileParser::createGUIGeneral(GoPanel *targetPanel, General *general) {
 
 	GUIGeneral *theGeneral = dynamic_cast<GUIGeneral*>(gen);
 	if (theGeneral) {
-		theGeneral->read(m_organFile, theGeneral->isDisplayAsPiston());
+		theGeneral->read(m_organFile, theGeneral->isDisplayAsPiston(), m_organ);
 	}
 }
 
@@ -608,7 +614,7 @@ void OrganFileParser::createGUIDivisional(GoPanel *targetPanel, Divisional *divi
 
 	GUIDivisional *divElement = dynamic_cast<GUIDivisional*>(guiDiv);
 	if (divElement) {
-		divElement->read(m_organFile, true);
+		divElement->read(m_organFile, true, m_organ);
 	}
 }
 
@@ -709,7 +715,7 @@ void OrganFileParser::createGUICoupler(GoPanel *targetPanel, Coupler *coupler) {
 
 	GUICoupler *cplrElement = dynamic_cast<GUICoupler*>(guiCplr);
 	if (cplrElement) {
-		cplrElement->read(m_organFile, false);
+		cplrElement->read(m_organFile, false, m_organ);
 	}
 }
 
@@ -722,7 +728,7 @@ void OrganFileParser::createGUIStop(GoPanel *targetPanel, Stop *stop) {
 
 	GUIStop *stopElement = dynamic_cast<GUIStop*>(guiStop);
 	if (stopElement) {
-		stopElement->read(m_organFile, false);
+		stopElement->read(m_organFile, false, m_organ);
 	}
 }
 

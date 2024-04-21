@@ -9,7 +9,7 @@
  *
  * GOODF is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -29,6 +29,7 @@
 #include <wx/fileconf.h>
 
 class Rank;
+class Organ;
 
 class Pipe {
 public:
@@ -37,8 +38,8 @@ public:
 	~Pipe();
 
 	void write(wxTextFile *outFile, wxString pipeNr, Rank *parent);
-	void read(wxFileConfig *cfg, wxString pipeNr, Rank *parent);
-	void readAttack(wxFileConfig *cfg, wxString pipeStr);
+	void read(wxFileConfig *cfg, wxString pipeNr, Rank *parent, Organ *readOrgan);
+	void readAttack(wxFileConfig *cfg, wxString pipeStr, Organ *readOrgan);
 
 	bool isFirstAttackRefPath();
 	void writeAdditionalAttacks(wxTextFile *outFile, wxString pipeNr);
@@ -57,8 +58,11 @@ public:
 	void writeReleaseXfade(wxTextFile *outFile, wxString pipeNr, Attack &atk);
 	void updateRelativePaths();
 	void updateRefString();
+	bool isIndependentRelease();
+	void setIndependentRelease(bool independent);
 
 	bool isPercussive;
+	bool hasIndependentRelease;
 	float amplitudeLevel;
 	float gain;
 	float pitchTuning;

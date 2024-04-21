@@ -10,17 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Option to create new panel from selection on existing panel display.
-- Option to import rank definitions from other .organ files.
+
+## [0.11.0] - 2024-03-30
+
+### Added
+
+- Option to import stop/rank definitions from other .organ files.
+- HasIndependentRelease option for percussive ranks and pipes.
+- Percussive and HasIndependentRelease is also possible to set at [Organ] and [WindchestGroup999] levels.
+- AmplitudeLevel, Gain, PitchTuning, PitchCorrection and TrackerDelay is now available for [WindchestGroup999].
 
 ### Changed
 
-- Build system now allow testing builds in between releases.
+- Build system on GitHub now allow testing builds in between releases from Actions.
 - AppImage build is now available.
 - Show what element actually is represented by each Gui Element.
+- Percussive and HasIndependentRelease values (default false) are inherited from [Organ]->[WindchestGroup]->[Rank]->[Pipe]. Note that this change in behaviour will cause odfs produced/saved with this version of GoOdf to be incompatible with earlier versions of GrandOrgue than 3.14+.
+- Increased maximum allowed panel size to 32000 pixels.
 
 ### Fixed
 
 - Click/drag adjustment within selection rectangle should not select/change underlying elements.
+- Text rendering on enclosure GUI element.
+- Reading gui drawstop button element image number 7.
 
 ## [0.10.0] - 2024-02-22
 
